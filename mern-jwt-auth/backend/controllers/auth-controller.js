@@ -1,7 +1,11 @@
 const User = require("../models/user-model");
+const jwt  = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 const register = async (req, res) => {
   try {
+    // console.log("Body received:", req.body);
+
     const { username, email, password } = req.body;
 
     // Validate input
@@ -22,25 +26,77 @@ const register = async (req, res) => {
       password
     });
 
+
+
+    
     // Send only username, email, hashed password
     res.status(201).json({
-      username: userCreated.username,
-      email: userCreated.email,
-      password: userCreated.password
+
+
+      token : await userCreated.generateToken(),
+      userId : userCreated._id.toString()
+
     });
 
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ msg: "Server error", error: error.message });
+  
+    // res.status(500).json({ msg: "Server error", error: error.message });
+    next(error)
   }
 };
 
-const login = async (req, res) => {
+// user login
+
+
+
+const login = async (req, res ) => {
   try {
-    const { email, password } = req.body;   } catch (error) {
-    console.log(error);
-    res.status(500).json({ msg: "Server error", error: error.message });
+    // console.log("login validation completed");
+   const {email, password} = req.body;
+
+   const userExist = await   User.findOne({email}); 
+   console.log(userExist)
+
+   if(!userExist){
+   return res.status(400).json({message : "invalid credentials"})
+   }
+
+  //  const user = await  bcrypt.compare(password , userExist.password);
+  const user = await userExist.comparePassword(password);
+
+   if(user){
+    res.status(201).json({
+      msg:"login successfull", 
+      username: userExist.username,
+      email: userExist.email,
+      password: userExist.password,
+      token : await userExist.generateToken(),
+      userId : userExist._id.toString()
+    })
+   }else{
+    res.status(401).json({message : "invalid email or password"})
+   }
+
+  } catch (error) {
+    next(error)
   }
 };
 
-module.exports = { register , login };
+
+// to send user data - user logic
+
+const user  = async (req , res)=>{
+  try {
+  
+    const userData = req.user;
+    console.log("user data",userData);
+
+    return res.status(200).json({msg : "user data sent successfully", userData})
+
+  } catch (error) {
+    console.log("error from the user route",error)
+  }
+}
+
+
+module.exports = { register , login  , user};
